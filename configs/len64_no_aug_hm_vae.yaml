@@ -1,0 +1,59 @@
+# logger options
+image_save_iter: 5000       # How often do you want to save output images during training
+image_display_iter: 5000       # How often do you want to display output images during training
+snapshot_save_iter: 5000      # How often do you want to save trained models
+log_iter: 10                   # How often do you want to log the training stats
+
+# optimization options
+max_iter: 250000              # maximum number of training iterations
+weight_decay: 0.0001          # weight decay
+lr: 0.0001                # learning rate for the generator
+init: kaiming                 # initialization [gaussian/kaiming/xavier/orthogonal]
+rec_6d_w: 1
+rec_rot_w: 1
+rec_pose_w: 10
+rec_joint_pos_w: 0
+rec_root_v_w: 0
+rec_linear_v_w: 0
+rec_angular_v_w: 0
+kl_w: 0.003
+shallow_kl_w: 0.003
+pre_kl_w: 0.0003
+validation_iter: 500
+
+iteration_interval: 50000
+
+lr_policy: step
+step_size: 100000
+gamma: 0.3
+
+# model options
+model_name: TwoHierSAVAEModel
+batch_size: 8
+latent_d: 24
+shallow_latent_d: 24
+n_joints: 24
+input_dim: 6
+output_dim: 6      
+
+num_layers: 4          
+skeleton_dist: 2
+skeleton_pool: mean
+extra_conv: 0
+padding_mode: reflection
+kernel_size: 15
+upsampling: linear
+
+fps_aug_flag: False
+random_root_rot_flag: False
+
+use_30fps_data: True
+
+train_seq_len: 64
+input_joint_pos: False
+input_root_v: False
+input_linear_v: False
+input_angular_v: False 
+max_input_timesteps: 300
+
+use_shallow_model: True

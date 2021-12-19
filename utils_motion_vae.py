@@ -138,8 +138,7 @@ class MotionSeqData(data.Dataset):
             # random_t_idx = 0 # For debug
             end_t_idx = random_t_idx + self.train_seq_len - 1
         else:
-            random_t_idx = 0
-            end_t_idx = timesteps-1
+            return self.__getitem__(random.sample(list(range(0, self.__len__())), 1)[0])
            
         pose_seq_data = self.standardize_data(ori_pose_seq_data)
 

@@ -5,18 +5,10 @@ import os
 import pickle as pkl 
 import datetime 
 import random 
-import joblib 
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from lib.utils.eval_utils import (
-    compute_accel,
-    compute_error_accel,
-    compute_error_verts,
-    batch_compute_similarity_transform_torch,
-)
 
 from torch.optim import lr_scheduler
 
@@ -29,9 +21,8 @@ from skeleton import SkeletonUnpool, SkeletonPool, SkeletonConv, find_neighbor, 
 from torch.distributions import Categorical
 import torch.distributions.multivariate_normal as dist_mn
 
-from utils_common import show3Dpose_animation, show3Dpose_animation_multiple, vis_rendered_mesh_only, show3Dpose_animation_with_mask, for_interpolation_vis_rendered_mesh_only
-from utils_motion_vae import rand_rotation_matrix
-from tensorboardX import SummaryWriter
+from utils_common import show3Dpose_animation, show3Dpose_animation_multiple, show3Dpose_animation_with_mask
+from torch.utils.tensorboard import SummaryWriter
 
 def get_scheduler(optimizer, hp, it=-1):
     if 'lr_policy' not in hp or hp['lr_policy'] == 'constant':
@@ -148,7 +139,7 @@ class Encoder(nn.Module):
             self.pooling_list.append(pool.pooling_list)
             self.edge_num.append(len(self.topologies[-1]))
 
-    def forward(self, input, fade_in_alpha, train_hier_level, offset=None):
+    def forward(self, input, offset=None):
         # train_hier_level: 1, 2, 3, 4 (deep to shallow)
         z_vector_list = []
         for i, layer in enumerate(self.layers):
@@ -167,21 +158,7 @@ class Encoder(nn.Module):
             
             encoder_map_input = input.view(bs, k_edges, -1)
             # print("encoder_map_input:{0}".format(encoder_map_input.size()))
-            # if train_hier_level == 1 and i < 3:
-            #     encoder_map_input = 0 * encoder_map_input
-            # if train_hier_level == 2 and i < 2:
-            #     encoder_map_input = 0 * encoder_map_input
-            # if train_hier_level == 3 and i < 1:
-            #     encoder_map_input = 0 * encoder_map_input
-            
-            # if train_hier_level == 4 and i == 0:
-            #     encoder_map_input = fade_in_alpha * encoder_map_input 
-            # if train_hier_level == 3 and i == 1:
-            #     encoder_map_input = fade_in_alpha * encoder_map_input 
-            # if train_hier_level == 2 and i == 2:
-            #     encoder_map_input = fade_in_alpha * encoder_map_input 
 
-            # print("encoder map input:{0}".format(encoder_map_input.size()))
             curr_z_vector = self.latent_enc_layers[i](encoder_map_input)
             # print("curr_z_vector:{0}".format(curr_z_vector.size()))
             z_vector_list.append(curr_z_vector)
@@ -280,7 +257,7 @@ class Decoder(nn.Module):
 
             self.layers.append(nn.Sequential(*seq))
 
-    def forward(self, z_vec_list, fade_in_alpha, train_hier_level, offset=None):
+    def forward(self, z_vec_list, offset=None):
         # train_hier_level: 1, 2, 3, 4 (deep to shallow)
         hier_feats = []
         num_z_vec = len(z_vec_list)
@@ -306,20 +283,6 @@ class Decoder(nn.Module):
                 # print("decoder forward k edges:{0}".format(k_edges))
                 tmp_input = input.view(bs, k_edges, -1, compressed_t)
                 tmp_hier_feats = hier_feats[i].view(bs, k_edges, -1, compressed_t)
-
-                # if train_hier_level == 1 and i > 0:
-                #     tmp_hier_feats = 0 * tmp_hier_feats
-                # if train_hier_level == 2 and i >= 2:
-                #     tmp_hier_feats = 0 * tmp_hier_feats
-                # if train_hier_level == 3 and i >= 3:
-                #     tmp_hier_feats = 0 * tmp_hier_feats
-                
-                # if train_hier_level == 4 and i == 3:
-                #     tmp_hier_feats = fade_in_alpha * tmp_hier_feats
-                # if train_hier_level == 3 and i == 2:
-                #     tmp_hier_feats = fade_in_alpha * tmp_hier_feats 
-                # if train_hier_level == 2 and i == 1:
-                #     tmp_hier_feats = fade_in_alpha * tmp_hier_feats
                 
                 tmp_cat_feats = torch.cat((tmp_input, tmp_hier_feats), dim=2) # bs X k_edges X (d+d') X T'
                 input = tmp_cat_feats.view(bs, -1, compressed_t) # bs X (k_edges*2d) X T'
@@ -327,8 +290,6 @@ class Decoder(nn.Module):
             # print("Decoder layer input:{0}".format(input.size()))
             input = layer(input)
             # print("Decoder layer output:{0}".format(input.size()))
-            # import pdb
-            # pdb.set_trace()
             
         return input
 
@@ -352,8 +313,7 @@ class TwoHierSAVAEModel(nn.Module):
 
         self.enc = Encoder(hp, edges)
         self.dec = Decoder(hp, self.enc)
-        
-        self.fade_in_duration = hp['fade_in_duration']
+      
         self.iteration_interval = hp['iteration_interval']
 
         mean_std_npy = "./utils/data/for_all_data_motion_model/all_amass_data_mean_std.npy"
@@ -389,10 +349,8 @@ class TwoHierSAVAEModel(nn.Module):
        
         input = encoder_input.view(bs, timesteps, -1) # bs X T X (24*9)
         input = input.transpose(1, 2) # bs X (24*9) X T
-        fade_in_alpha = self.fade_in_alpha(iterations)
-        train_hier_level = self.get_hier_level(iterations)
        
-        latent, z_vec_list = self.enc(input, fade_in_alpha, train_hier_level, offset) # input: bs X (n_edges*input_dim) X T
+        latent, z_vec_list = self.enc(input, offset) # input: bs X (n_edges*input_dim) X T
         # latent: bs X (k_edges*d) X (T//2^n_layers)
         # list, each is bs X k_edges X (2*latent_d)
        
@@ -432,7 +390,7 @@ class TwoHierSAVAEModel(nn.Module):
 
             l_kl_list.append(l_kl_curr) # From shallow to deep layers
 
-        out_cont6d, out_rotation_matrix, out_pose_pos, root_v_out, _, _, _ = self._decode(z_list, fade_in_alpha, train_hier_level)
+        out_cont6d, out_rotation_matrix, out_pose_pos, root_v_out, _, _, _ = self._decode(z_list)
 
         l_rec_6d = self.l2_criterion(out_cont6d.contiguous().view(bs, self.max_timesteps, -1), seq_rot_6d)
         l_rec_rot_mat = self.l2_criterion(out_rotation_matrix.view(bs, self.max_timesteps, -1), seq_rot_mat)
@@ -474,35 +432,10 @@ class TwoHierSAVAEModel(nn.Module):
         loss = (pred-gt)**2
 
         return loss.mean()
-    
-    def de_standardize(self, output_data, start_idx, end_idx):
-        # output_data: bs X n_dim 
-        # output_data: T X bs X n_dim
-        if len(output_data.size()) == 2:
-            de_data = self.mean_vals[:, start_idx:end_idx] + self.std_vals[:, start_idx:end_idx] * output_data
-        elif len(output_data.size()) == 3:
-            de_data = self.mean_vals[None, :, :][:, :, start_idx:end_idx] + self.std_vals[None, :, :][:, :, start_idx:end_idx] * output_data
 
-        return de_data
-
-    def gen_motion_w_trajectory(self, pose_data, root_v_data):
-        # pose_data: T X bs X 24 X 3, root are origin
-        # root_v_data: T X bs X 3, each timestep t for root represents the relative translation with respect to previous timestep
-        tmp_root_v_data = root_v_data.clone() # T X bs X 3    
-        tmp_root_v_data = self.de_standardize(tmp_root_v_data, 576, 579)
-
-        timesteps, bs, _, _ = pose_data.size()
-        absolute_pose_data = pose_data.clone()
-        root_trans = torch.zeros(bs, 3).cuda() # bs X 3
-        for t_idx in range(1, timesteps):
-            root_trans += tmp_root_v_data[t_idx, :, :] # bs X 3
-            absolute_pose_data[t_idx, :, :, :] += root_trans[:, None, :] # bs X 24 X 3  
-
-        return absolute_pose_data # T X bs X 24 X 3
-
-    def _decode(self, z_list, fade_in_alpha, train_hier_level, adjust_root_rot_flag=False, relative_root_rot=None):
+    def _decode(self, z_list, adjust_root_rot_flag=False, relative_root_rot=None):
         # list of z: bs X 7 X latent_d
-        result = self.dec(z_list, fade_in_alpha, train_hier_level) # bs X (24*out_dim) X T
+        result = self.dec(z_list) # bs X (24*out_dim) X T
         bs = result.size()[0]
         # print("output size:{0}".format(result.size()))
         result = result.transpose(1, 2) # bs X T X (24*out_dim)
@@ -539,6 +472,31 @@ class TwoHierSAVAEModel(nn.Module):
         out_pose_pos = out_pose_pos.view(bs, self.max_timesteps, self.n_joints, 3) # bs X T X 24 X 3
 
         return out_cont6d, out_rotation_matrix, out_pose_pos, root_v_out, joint_pos_out, linear_v_out, angular_v_out
+    
+    def de_standardize(self, output_data, start_idx, end_idx):
+        # output_data: bs X n_dim 
+        # output_data: T X bs X n_dim
+        if len(output_data.size()) == 2:
+            de_data = self.mean_vals[:, start_idx:end_idx] + self.std_vals[:, start_idx:end_idx] * output_data
+        elif len(output_data.size()) == 3:
+            de_data = self.mean_vals[None, :, :][:, :, start_idx:end_idx] + self.std_vals[None, :, :][:, :, start_idx:end_idx] * output_data
+
+        return de_data
+
+    def gen_motion_w_trajectory(self, pose_data, root_v_data):
+        # pose_data: T X bs X 24 X 3, root are origin
+        # root_v_data: T X bs X 3, each timestep t for root represents the relative translation with respect to previous timestep
+        tmp_root_v_data = root_v_data.clone() # T X bs X 3    
+        tmp_root_v_data = self.de_standardize(tmp_root_v_data, 576, 579)
+
+        timesteps, bs, _, _ = pose_data.size()
+        absolute_pose_data = pose_data.clone()
+        root_trans = torch.zeros(bs, 3).cuda() # bs X 3
+        for t_idx in range(1, timesteps):
+            root_trans += tmp_root_v_data[t_idx, :, :] # bs X 3
+            absolute_pose_data[t_idx, :, :, :] += root_trans[:, None, :] # bs X 24 X 3  
+
+        return absolute_pose_data # T X bs X 24 X 3
 
     def _decode_w_given_decoder(self, z_list, curr_decoder):
         # list of z: bs X 7 X latent_d

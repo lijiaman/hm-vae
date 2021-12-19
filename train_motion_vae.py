@@ -4,7 +4,6 @@ import sys
 import argparse
 import shutil
 import numpy as np 
-import imageio
 
 from torch.utils.tensorboard import SummaryWriter
 
