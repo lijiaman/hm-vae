@@ -13,4 +13,13 @@ pip install opencv-python
 pip install matplotlib
 ```
 
-## Train hm-vae with window = 64. 
+## Train hm-vae 
+```
+python train_motion_vae.py --config ./configs/len64_no_aug_hm_vae.yaml
+```
+
+## Motion Completeion
+Coming soon. 
+
+## Motion Interpolation 
+Coming soon. 
