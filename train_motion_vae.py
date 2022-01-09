@@ -86,10 +86,11 @@ while True:
         loss_all, loss_kl, loss_6d_rec, loss_rot_rec, loss_pose_rec, \
         loss_joint_pos_rec, loss_root_v_rec, loss_linear_v_rec, loss_angular_v_rec = \
         trainer.gen_update(input_data, config, iterations, opts.multigpus)
-        print('Training: Total loss: %.4f, KL loss: %.8f, Rec 6D loss: %.4f, Rec Rot loss: %.4f, Rec Pose loss: %.4f, \
-            Rec joint pos loss: %.4f, Rec root v loss: %.4f, Rec linear v loss: %.4f, Rec angular v loss: %.4f' % \
-            (loss_all, loss_kl, loss_6d_rec, loss_rot_rec, loss_pose_rec, loss_joint_pos_rec, \
-            loss_root_v_rec, loss_linear_v_rec, loss_angular_v_rec))
+        if it % 50 == 0:
+            print('Training: Total loss: %.4f, KL loss: %.8f, Rec 6D loss: %.4f, Rec Rot loss: %.4f, Rec Pose loss: %.4f, \
+                Rec joint pos loss: %.4f, Rec root v loss: %.4f, Rec linear v loss: %.4f, Rec angular v loss: %.4f' % \
+                (loss_all, loss_kl, loss_6d_rec, loss_rot_rec, loss_pose_rec, loss_joint_pos_rec, \
+                loss_root_v_rec, loss_linear_v_rec, loss_angular_v_rec))
         # torch.cuda.synchronize()
         
             

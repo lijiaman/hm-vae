@@ -586,9 +586,7 @@ class TwoHierSAVAEModel(nn.Module):
 
             input = encoder_input.view(bs, timesteps, -1) # bs X T X (24*9)
             input = input.transpose(1, 2) # bs X (24*9) X T
-            fade_in_alpha = self.fade_in_alpha(iterations)
-            train_hier_level = self.get_hier_level(iterations)
-            latent, z_vec_list = self.enc(input, fade_in_alpha, train_hier_level, offset) # input: bs X (n_edges*input_dim) X T
+            latent, z_vec_list = self.enc(input, offset) # input: bs X (n_edges*input_dim) X T
             # latent: bs X (k_edges*d) X (T//2^n_layers)
             # list, each is bs X k_edges X (2*latent_d)
         
@@ -613,11 +611,11 @@ class TwoHierSAVAEModel(nn.Module):
 
             if hp['random_root_rot_flag']:
                 mean_out_cont6d, mean_out_rotation_matrix, mean_out_pose_pos, \
-                mean_out_root_v, _, _, _ = self._decode(mean_z_list, fade_in_alpha, train_hier_level, \
+                mean_out_root_v, _, _, _ = self._decode(mean_z_list,  \
                     adjust_root_rot_flag=True, relative_root_rot=relative_rot)
             else:
                 mean_out_cont6d, mean_out_rotation_matrix, mean_out_pose_pos, \
-                mean_out_root_v, _, _, _ = self._decode(mean_z_list, fade_in_alpha, train_hier_level)
+                mean_out_root_v, _, _, _ = self._decode(mean_z_list)
 
             # bs X T X 24 X 6, bs X T X 24 X 3 X 3, bs X T X 24 X 3
             use_mean_seq_res = mean_out_pose_pos.transpose(0, 1) # T X bs X 24 X 3
@@ -625,11 +623,11 @@ class TwoHierSAVAEModel(nn.Module):
             # Get sampled vector motion
             if hp['random_root_rot_flag']:
                 sampled_out_cont6d, sampled_out_rotation_matrix, sampled_out_pose_pos, \
-                sampled_out_root_v, _, _, _ = self._decode(sampled_z_list, fade_in_alpha, train_hier_level, \
+                sampled_out_root_v, _, _, _ = self._decode(sampled_z_list, \
                      adjust_root_rot_flag=True)
             else:
                 sampled_out_cont6d, sampled_out_rotation_matrix, sampled_out_pose_pos, \
-                sampled_out_root_v, _, _, _ = self._decode(sampled_z_list, fade_in_alpha, train_hier_level)
+                sampled_out_root_v, _, _, _ = self._decode(sampled_z_list)
             # bs X T X 24 X 6, bs X T X 24 X 3 X 3, bs X T X 24 X 3
             use_sampled_seq_res = sampled_out_pose_pos.transpose(0, 1) # T X bs X 24 X 3
            
