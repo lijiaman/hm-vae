@@ -1045,10 +1045,12 @@ class TwoHierSAVAEModel(nn.Module):
         return loss 
 
     def load_amass_test_data_w_trajectory(self, max_num_seq=None):
-        root_folder = "/glab2/data/Users/jiaman/adobe/github/motion_prior/utils/data"
-
+        root_folder = "/orion/u/jiamanli/github/hm-vae/utils/data"
+  
         data_folder = os.path.join(root_folder, "for_all_data_motion_model")
-        rot_npy_folder = os.path.join(root_folder, "processed_all_amass_data")
+        # rot_npy_folder = os.path.join(root_folder, "processed_all_amass_data")
+
+        rot_npy_folder = "/orion/u/jiamanli/datasets/amass_for_hm_vae_fps30"
        
         test_json = os.path.join(data_folder, "test_all_amass_motion_data.json")
         test_json_data = json.load(open(test_json, 'r'))
@@ -1064,7 +1066,7 @@ class TwoHierSAVAEModel(nn.Module):
             rot_npy_path = os.path.join(rot_npy_folder, v_name)
             ori_pose_seq_data = np.load(rot_npy_path) # T X n_dim
             
-            if ori_pose_seq_data.shape[0] >= self.max_timesteps and ("dance" in v_name):
+            if ori_pose_seq_data.shape[0] >= self.max_timesteps:
                 ori_pose_seq_data = torch.from_numpy(ori_pose_seq_data).float()
                 rot_mat_data = ori_pose_seq_data[:, 24*6:24*6+24*3*3] # T X (24*3*3)
                 root_v_data = ori_pose_seq_data[:, -3:] # T X 3
