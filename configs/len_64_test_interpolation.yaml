@@ -1,8 +1,8 @@
 # logger options
 image_save_iter: 20000       # How often do you want to save output images during training
-image_display_iter: 20000       # How often do you want to display output images during training
-snapshot_save_iter: 20000      # How often do you want to save trained models
-log_iter: 20                   # How often do you want to log the training stats
+image_display_iter: 5000       # How often do you want to display output images during training
+snapshot_save_iter: 5000      # How often do you want to save trained models
+log_iter: 10                   # How often do you want to log the training stats
 
 # optimization options
 max_iter: 250000              # maximum number of training iterations
@@ -22,6 +22,7 @@ pre_kl_w: 0.0003
 validation_iter: 500
 
 iteration_interval: 50000
+fade_in_duration: 40000
 
 lr_policy: step
 step_size: 100000
@@ -45,9 +46,13 @@ kernel_size: 15
 upsampling: linear
 
 fps_aug_flag: False
+lr_flip_flag: False
 random_root_rot_flag: False
 
 use_30fps_data: True
+train_5s_model: True
+train_10s_model: False
+train_salsa_data: False
 
 train_seq_len: 64
 input_joint_pos: False
@@ -57,3 +62,23 @@ input_angular_v: False
 max_input_timesteps: 300
 
 use_shallow_model: True
+hier_use_add: False
+
+
+# For motion temporal interpolation 
+opt_lr: 0.1
+opt_it: 150
+
+reg_w: 0
+reg_w_decoder: 1000
+reg_w_trajectory: 0
+
+opt_lr_policy: step 
+opt_step_size: 50
+opt_gamma: 0.1
+
+interpolation_window: 5
+
+optimize_decoder: True
+optimize_trajectory: False
+replace_frame_with_gt: True
